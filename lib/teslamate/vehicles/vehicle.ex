@@ -60,6 +60,18 @@ defmodule TeslaMate.Vehicles.Vehicle do
   def minimum_interval, do: interval("POLLING_MINIMUM_INTERVAL", 0)
   def sentry_interval, do: interval("POLLING_SENTRY_INTERVAL", 0)
 
+  # Streaming-mode suspend probe cadence (minutes). While suspended with an
+  # active stream, the periodic state check uses GET /api/1/vehicles/<id>,
+  # which is free and does not touch the vehicle, so a shorter cadence only
+  # tightens sleep detection. Configured in seconds for consistency with the
+  # other POLLING_* variables; floored to one minute.
+  def suspended_interval_min do
+    case System.get_env("POLLING_SUSPENDED_INTERVAL") do
+      nil -> 30
+      val -> String.to_integer(val) |> max(60) |> div(60)
+    end
+  end
+
   def identify(%Vehicle{display_name: name, vehicle_config: config}) do
     case config do
       %VehicleConfig{
@@ -294,7 +306,7 @@ defmodule TeslaMate.Vehicles.Vehicle do
 
       suspend_min =
         case {data.car.settings, streaming?(data)} do
-          {%CarSettings{use_streaming_api: true}, true} -> 30
+          {%CarSettings{use_streaming_api: true}, true} -> suspended_interval_min()
           {%CarSettings{suspend_min: s}, _} -> s
         end
 
@@ -1663,7 +1675,7 @@ defmodule TeslaMate.Vehicles.Vehicle do
   defp try_to_suspend(vehicle, current_state, %Data{car: car} = data) do
     {suspend_after_idle_min, suspend_min, i} =
       case {car.settings, streaming?(data)} do
-        {%CarSettings{use_streaming_api: true}, true} -> {3, 30, 2}
+        {%CarSettings{use_streaming_api: true}, true} -> {3, suspended_interval_min(), 2}
         {%CarSettings{suspend_after_idle_min: i, suspend_min: s}, _} -> {i, s, 1}
       end
 

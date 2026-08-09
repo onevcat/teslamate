@@ -2,6 +2,19 @@ defmodule TeslaMate.Vehicles.Vehicle.SuspendTest do
   use TeslaMate.VehicleCase, async: false
 
   alias TeslaMate.Vehicles.Vehicle.Summary
+  alias TeslaMate.Vehicles.Vehicle
+
+  test "POLLING_SUSPENDED_INTERVAL controls the streaming suspend probe cadence" do
+    on_exit(fn -> System.delete_env("POLLING_SUSPENDED_INTERVAL") end)
+
+    assert Vehicle.suspended_interval_min() == 30
+
+    :ok = System.put_env("POLLING_SUSPENDED_INTERVAL", "300")
+    assert Vehicle.suspended_interval_min() == 5
+
+    :ok = System.put_env("POLLING_SUSPENDED_INTERVAL", "10")
+    assert Vehicle.suspended_interval_min() == 1
+  end
 
   test "suspends when idling", %{test: name} do
     now_ts = DateTime.utc_now() |> DateTime.to_unix(:millisecond)
