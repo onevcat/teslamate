@@ -93,6 +93,7 @@ defmodule TeslaMate.Vehicles.Vehicle do
   def online_interval, do: interval("POLLING_ONLINE_INTERVAL", 60)
   def charging_interval, do: interval("POLLING_CHARGING_INTERVAL", 5)
   def minimum_interval, do: interval("POLLING_MINIMUM_INTERVAL", 0)
+  def sentry_interval, do: interval("POLLING_SENTRY_INTERVAL", 0)
 
   @spec format_model(String.t()) :: String.t()
   def format_model(model) when model in @models_with_prefix, do: "Model #{model}"
@@ -1758,7 +1759,7 @@ defmodule TeslaMate.Vehicles.Vehicle do
     case can_fall_asleep(vehicle, data) do
       {:error, :sentry_mode} ->
         {:keep_state, %Data{data | last_used: DateTime.utc_now()},
-         [broadcast_summary(), schedule_fetch(30 * i, data)]}
+         [broadcast_summary(), schedule_fetch(max(30 * i, sentry_interval()), data)]}
 
       {:error, :preconditioning} ->
         if suspend?, do: Logger.warning("Preconditioning ...", car_id: car.id)
